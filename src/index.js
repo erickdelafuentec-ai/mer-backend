@@ -10,6 +10,7 @@ import incidents from "./routes/incidents.js";
 import inspections from "./routes/inspections.js";
 import ai from "./routes/ai.js";
 import bootstrap from "./routes/bootstrap.js";
+import ingest from "./routes/ingest.js";
 import { q } from "./db.js";
 
 const app = express();
@@ -51,6 +52,7 @@ app.use("/api/kpis", kpis);
 app.use("/api/incidents", incidents);
 app.use("/api/inspections", inspections);
 app.use("/api/ai", ai);
+app.use("/api/ingest", ingest);
 
 // Dominios CRUD estándar
 app.use("/api/risks", crudRouter({

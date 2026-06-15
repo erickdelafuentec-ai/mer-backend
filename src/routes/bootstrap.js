@@ -8,17 +8,13 @@ const r = Router();
  * Entrega en una sola llamada todo lo que el frontend necesita para
  * pintar la plataforma: tenant (rubro), KPIs con su último valor,
  * riesgos, incidentes, inspecciones, planes, workflows y pipeline.
- * Si el tenant aún no tiene datos para su rubro, los siembra una vez.
+ * La plataforma arranca VACÍA: el usuario carga su propio Excel.
  */
 r.get("/", async (req, res, next) => {
   try {
     const t = await q("SELECT id, name, rubro, plan FROM tenants WHERE id=$1", [req.tenantId]);
     if (!t.rows.length) return res.status(404).json({ error: "Tenant no encontrado" });
     const tenant = t.rows[0];
-
-    // Sembrar datos de arranque la primera vez (por rubro)
-    const count = await q("SELECT count(*)::int AS n FROM kpis WHERE tenant_id=$1", [req.tenantId]);
-    if (count.rows[0].n === 0) await seedRubro(req.tenantId, tenant.rubro);
 
     const [kpis, riesgos, incidentes, inspecciones, planes, workflows, pipeline] = await Promise.all([
       q(`SELECT k.*, (SELECT value FROM kpi_values v WHERE v.kpi_id=k.id ORDER BY ts DESC LIMIT 1) AS valor_actual,
