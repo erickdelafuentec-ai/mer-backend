@@ -31,7 +31,7 @@ export async function askAI(tenantId, rubro, pregunta, historial = []) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1000,
       system,
       messages: [...historial.slice(-8), { role: "user", content: pregunta }],
