@@ -80,25 +80,43 @@ export async function importarHoja(tenantId, { destino, mapeo = {}, filas = [] }
   const creado = { destino, registros: 0, detalle: "" };
 
   if (destino === "kpi") {
-    const colTiempo = mapeo.tiempo;
-    const metricas = mapeo.metricas || [];
+    // Normalizar el mapeo (la IA puede devolver formatos variados)
+    const cols = filas.length ? Object.keys(filas[0]) : [];
+    let colTiempo = mapeo.tiempo || mapeo.fecha || mapeo.periodo;
+    let metricas = mapeo.metricas || mapeo.valores || mapeo.metrica || [];
+    if (typeof metricas === "string") metricas = [metricas];
+    // Si no vino el mapeo, deducir: columna no-numérica = tiempo; numéricas = métricas
+    if (!metricas.length) {
+      metricas = cols.filter(c => c !== colTiempo && filas.some(f => !isNaN(parseFloat(f[c]))));
+    }
+    if (!colTiempo) {
+      colTiempo = cols.find(c => !metricas.includes(c)) || null;
+    }
     let total = 0;
     for (const nombreMetrica of metricas) {
       const k = await q(
         "INSERT INTO kpis (tenant_id, nombre, unidad, direccion) VALUES ($1,$2,'','up') RETURNING id",
         [tenantId, nombreMetrica]);
+      let i = 0;
       for (const fila of filas) {
         const valor = num(fila[nombreMetrica]);
-        if (valor == null) continue;
-        // intentar interpretar la fecha; si no, usar índice como periodo
-        let ts = fila[colTiempo];
-        const d = new Date(ts);
-        ts = isNaN(d.getTime()) ? `2026-01-01` : d.toISOString().slice(0, 10);
+        if (valor == null) { i++; continue; }
+        // fecha de la fila; si no se puede interpretar, usar un mes distinto por índice
+        let ts;
+        const raw = colTiempo ? fila[colTiempo] : null;
+        const d = raw != null ? new Date(raw) : new Date("invalid");
+        if (!isNaN(d.getTime())) {
+          ts = d.toISOString().slice(0, 10);
+        } else {
+          // periodo sintético distinto por fila para no pisar valores
+          const year = 2026, month = (i % 12) + 1;
+          ts = `${year}-${String(month).padStart(2, "0")}-01`;
+        }
         await q(
           `INSERT INTO kpi_values (tenant_id, kpi_id, ts, value) VALUES ($1,$2,$3,$4)
            ON CONFLICT (kpi_id, ts) DO UPDATE SET value = EXCLUDED.value`,
           [tenantId, k.rows[0].id, ts, valor]);
-        total++;
+        total++; i++;
       }
     }
     creado.registros = metricas.length;
