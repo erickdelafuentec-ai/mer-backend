@@ -16,7 +16,7 @@ import { q } from "./db.js";
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || "*" }));
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "100mb" }));
 
 /* ---------- Públicos ---------- */
 app.get("/health", (_req, res) => res.json({ ok: true, servicio: "MER Analytics API", version: "1.0.0" }));
